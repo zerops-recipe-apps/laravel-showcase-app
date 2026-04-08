@@ -265,8 +265,8 @@ zerops:
         REDIS_CLIENT: predis
         REDIS_HOST: ${redis_hostname}
         REDIS_PORT: ${redis_port}
-        # Worker uses sync sessions and Redis cache/queue.
-        # No browser sessions on a background process.
+        # Worker shares the same Redis-backed drivers as the app.
+        # Sessions are configured but unused by the CLI process.
         SESSION_DRIVER: redis
         CACHE_STORE: redis
         QUEUE_CONNECTION: redis

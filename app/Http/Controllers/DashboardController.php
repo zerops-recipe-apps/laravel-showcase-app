@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use MeiliSearch\Client as MeiliClient;
+use Meilisearch\Client as MeiliClient;
 
 class DashboardController extends Controller
 {
