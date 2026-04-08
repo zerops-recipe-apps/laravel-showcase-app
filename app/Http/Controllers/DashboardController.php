@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Article;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +17,34 @@ class DashboardController extends Controller
     {
         $services = $this->checkServices();
 
-        return view('dashboard.index', compact('services'));
+        $articles = Article::latest()->limit(15)->get();
+
+        $cacheDemo = null;
+        $demoValue = Cache::get('demo_cache_key');
+        if ($demoValue !== null) {
+            $cacheDemo = [
+                'value' => $demoValue,
+                'set_at' => Cache::get('demo_cache_key_set_at'),
+            ];
+        }
+
+        $files = [];
+        try {
+            $disk = Storage::disk('s3');
+            foreach ($disk->files('/') as $file) {
+                $files[] = [
+                    'name' => $file,
+                    'size' => $disk->size($file),
+                    'last_modified' => $disk->lastModified($file),
+                ];
+            }
+        } catch (\Throwable) {
+            // S3 unavailable
+        }
+
+        $queueResults = Cache::get('queue_results', []);
+
+        return view('dashboard.index', compact('services', 'articles', 'cacheDemo', 'files', 'queueResults'));
     }
 
     public function health(): JsonResponse
