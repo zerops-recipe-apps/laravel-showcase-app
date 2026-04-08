@@ -1,0 +1,124 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+use MeiliSearch\Client as MeiliClient;
+
+class DashboardController extends Controller
+{
+    public function index(): View
+    {
+        $services = $this->checkServices();
+
+        return view('dashboard.index', compact('services'));
+    }
+
+    public function health(): JsonResponse
+    {
+        try {
+            DB::connection()->getPdo();
+            return response()->json(['status' => 'ok']);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 503);
+        }
+    }
+
+    public function status(): JsonResponse
+    {
+        $checks = [];
+
+        $start = microtime(true);
+        try {
+            DB::connection()->getPdo();
+            $checks['database'] = [
+                'status' => 'connected',
+                'latency_ms' => round((microtime(true) - $start) * 1000, 2),
+            ];
+        } catch (\Throwable $e) {
+            $checks['database'] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
+
+        $start = microtime(true);
+        try {
+            Cache::store('redis')->put('_health_check', true, 10);
+            Cache::store('redis')->forget('_health_check');
+            $checks['redis'] = [
+                'status' => 'connected',
+                'latency_ms' => round((microtime(true) - $start) * 1000, 2),
+            ];
+        } catch (\Throwable $e) {
+            $checks['redis'] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
+
+        $start = microtime(true);
+        try {
+            Storage::disk('s3')->files('/');
+            $checks['storage'] = [
+                'status' => 'connected',
+                'latency_ms' => round((microtime(true) - $start) * 1000, 2),
+            ];
+        } catch (\Throwable $e) {
+            $checks['storage'] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
+
+        $start = microtime(true);
+        try {
+            $client = new MeiliClient(config('scout.meilisearch.host'), config('scout.meilisearch.key'));
+            $client->health();
+            $checks['search'] = [
+                'status' => 'connected',
+                'latency_ms' => round((microtime(true) - $start) * 1000, 2),
+            ];
+        } catch (\Throwable $e) {
+            $checks['search'] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
+
+        return response()->json([
+            'status' => collect($checks)->every(fn ($c) => $c['status'] === 'connected') ? 'ok' : 'degraded',
+            'services' => $checks,
+        ]);
+    }
+
+    private function checkServices(): array
+    {
+        $services = [];
+
+        try {
+            DB::connection()->getPdo();
+            $services['database'] = ['status' => 'connected', 'label' => 'PostgreSQL'];
+        } catch (\Throwable) {
+            $services['database'] = ['status' => 'disconnected', 'label' => 'PostgreSQL'];
+        }
+
+        try {
+            Cache::store('redis')->put('_health', true, 10);
+            Cache::store('redis')->forget('_health');
+            $services['redis'] = ['status' => 'connected', 'label' => 'Valkey (Redis)'];
+        } catch (\Throwable) {
+            $services['redis'] = ['status' => 'disconnected', 'label' => 'Valkey (Redis)'];
+        }
+
+        try {
+            Storage::disk('s3')->files('/');
+            $services['storage'] = ['status' => 'connected', 'label' => 'Object Storage (S3)'];
+        } catch (\Throwable) {
+            $services['storage'] = ['status' => 'disconnected', 'label' => 'Object Storage (S3)'];
+        }
+
+        try {
+            $client = new MeiliClient(config('scout.meilisearch.host'), config('scout.meilisearch.key'));
+            $client->health();
+            $services['search'] = ['status' => 'connected', 'label' => 'Meilisearch'];
+        } catch (\Throwable) {
+            $services['search'] = ['status' => 'disconnected', 'label' => 'Meilisearch'];
+        }
+
+        return $services;
+    }
+}
