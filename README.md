@@ -340,7 +340,6 @@ Install Laravel Scout with the Meilisearch driver for full-text search. Add the 
 ```bash
 composer require laravel/scout meilisearch/meilisearch-php
 ```
-
 <!-- #ZEROPS_EXTRACT_END:integration-guide# -->
 
 <!-- #ZEROPS_EXTRACT_START:knowledge-base# -->
@@ -353,5 +352,5 @@ composer require laravel/scout meilisearch/meilisearch-php
 - **PDO PostgreSQL extension** — The `php-nginx` base image includes `pdo_pgsql` out of the box. No `prepareCommands` or `apk add` needed for PostgreSQL connectivity.
 - **Predis over phpredis** — The `php-nginx` base image does not include the `phpredis` C extension. Use the `predis/predis` Composer package and set `REDIS_CLIENT=predis` to avoid "class Redis not found" errors.
 - **Object storage requires path-style** — Zerops object storage uses MinIO, which requires `AWS_USE_PATH_STYLE_ENDPOINT=true`. Without it, the SDK attempts virtual-hosted bucket URLs that MinIO cannot resolve.
-
+- **Vite manifest missing on dev after fresh deploy** — the `dev` setup intentionally omits `npm run build` from `buildCommands` so the HMR workflow (`npm run dev` via SSH) stays fast. Any view rendering `@vite(...)` therefore 500s with `Vite manifest not found at: /var/www/public/build/manifest.json` on the first request after a `zerops_deploy`. Fix: run `ssh appdev 'cd /var/www && npm run build'` once after the deploy and before `zerops_verify` — SSHFS propagates the manifest into the container without a redeploy. For iterative work, `ssh appdev 'cd /var/www && nohup npm run dev > /tmp/vite.log 2>&1 &'` drops `public/build/hot` and Laravel routes asset URLs to the dev server. **Do NOT add `npm run build` to dev `buildCommands`** — it adds ~20–30 s to every `zcli push` and defeats the HMR-first design.
 <!-- #ZEROPS_EXTRACT_END:knowledge-base# -->
