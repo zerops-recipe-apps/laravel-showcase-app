@@ -113,9 +113,12 @@ zerops:
         # signed URLs, mail links, and CSRF origin validation.
         # zeropsSubdomain is the platform-injected HTTPS URL.
         APP_URL: ${zeropsSubdomain}
-        # Stderr logging sends output to Zerops runtime log
-        # viewer — no log files to manage or rotate.
-        LOG_CHANNEL: stderr
+        # syslog routes Laravel logs to the Zerops runtime log
+        # viewer via the local0 facility — no log files to
+        # manage or rotate, and app logs stay tagged separately
+        # from PHP-FPM/nginx system messages.
+        LOG_CHANNEL: syslog
+        LOG_SYSLOG_FACILITY: local0
         LOG_LEVEL: warning
         # Cross-service references resolve at deploy time.
         # Pattern: ${hostname_varname} maps to the db service's
@@ -206,9 +209,10 @@ zerops:
         APP_ENV: local
         APP_DEBUG: "true"
         APP_URL: ${zeropsSubdomain}
-        # Debug-level stderr logging surfaces all framework
-        # events in the Zerops log viewer.
-        LOG_CHANNEL: stderr
+        # Debug-level syslog logging surfaces all framework
+        # events in the Zerops log viewer via local0 facility.
+        LOG_CHANNEL: syslog
+        LOG_SYSLOG_FACILITY: local0
         LOG_LEVEL: debug
         # Same service wiring as prod — only mode flags differ.
         DB_CONNECTION: pgsql
@@ -278,7 +282,8 @@ zerops:
         APP_ENV: production
         APP_DEBUG: "false"
         APP_URL: ${zeropsSubdomain}
-        LOG_CHANNEL: stderr
+        LOG_CHANNEL: syslog
+        LOG_SYSLOG_FACILITY: local0
         LOG_LEVEL: warning
         DB_CONNECTION: pgsql
         DB_HOST: ${db_hostname}
@@ -352,5 +357,4 @@ composer require laravel/scout meilisearch/meilisearch-php
 - **PDO PostgreSQL extension** — The `php-nginx` base image includes `pdo_pgsql` out of the box. No `prepareCommands` or `apk add` needed for PostgreSQL connectivity.
 - **Predis over phpredis** — The `php-nginx` base image does not include the `phpredis` C extension. Use the `predis/predis` Composer package and set `REDIS_CLIENT=predis` to avoid "class Redis not found" errors.
 - **Object storage requires path-style** — Zerops object storage uses MinIO, which requires `AWS_USE_PATH_STYLE_ENDPOINT=true`. Without it, the SDK attempts virtual-hosted bucket URLs that MinIO cannot resolve.
-- **Vite manifest missing on dev after fresh deploy** — the `dev` setup intentionally omits `npm run build` from `buildCommands` so the HMR workflow (`npm run dev` via SSH) stays fast. Any view rendering `@vite(...)` therefore 500s with `Vite manifest not found at: /var/www/public/build/manifest.json` on the first request after a `zerops_deploy`. Fix: run `ssh appdev 'cd /var/www && npm run build'` once after the deploy and before `zerops_verify` — SSHFS propagates the manifest into the container without a redeploy. For iterative work, `ssh appdev 'cd /var/www && nohup npm run dev > /tmp/vite.log 2>&1 &'` drops `public/build/hot` and Laravel routes asset URLs to the dev server. **Do NOT add `npm run build` to dev `buildCommands`** — it adds ~20–30 s to every `zcli push` and defeats the HMR-first design.
 <!-- #ZEROPS_EXTRACT_END:knowledge-base# -->
