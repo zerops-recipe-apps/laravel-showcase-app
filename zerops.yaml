@@ -174,17 +174,9 @@ zerops:
       # Migration + seed runs once per deploy — DB is ready
       # when the SSH session starts. No cache warming in dev
       # — we want config changes to take effect immediately.
-      #
-      # Vite build runs ONCE per service lifetime (token
-      # vite-build-v1) so the first email-link visit renders
-      # with assets. After that, `npm run dev` over SSH writes
-      # public/hot, and @vite() routes through the HMR server
-      # instead of reading the (now stale) manifest — so the
-      # stale build is invisible during real dev work.
       initCommands:
         - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
         - zsc execOnce seed-v1 --retryUntilSuccessful -- php artisan db:seed --force
-        - zsc execOnce vite-build-v1 --retryUntilSuccessful -- npm run build
         - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
       envVariables:
         APP_NAME: "Laravel Zerops"
