@@ -85,15 +85,14 @@ zerops:
       #
       # Migrations run exactly once per deploy via zsc execOnce,
       # regardless of how many containers start in parallel.
-      # Seeder populates sample data on first deploy so the
-      # dashboard shows real records immediately.
+      # Seeding lives in the dev setup — appdev and appstage share
+      # this database, so prod does not seed.
       # Scout import rebuilds the Meilisearch index from DB data
-      # after seeding — the safety net for when auto-indexing
-      # fires zero events (records already exist from prior deploy).
+      # on every deploy — the safety net for when auto-indexing
+      # fires zero events.
       initCommands:
-        - zsc execOnce ${appVersionId} -- php artisan migrate --force
-        - zsc execOnce seed-v1 -- php artisan db:seed --force
-        - zsc execOnce ${appVersionId}-scout -- php artisan scout:import "App\\Models\\Article"
+        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
+        - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
         - php artisan config:cache
         - php artisan route:cache
         - php artisan view:cache
@@ -195,12 +194,16 @@ zerops:
       # re-executed on every container restart.
       prepareCommands:
         - sudo -E zsc install nodejs@22
-      # Migration + seed runs once per deploy — DB is ready
-      # when the SSH session starts. No cache warming in dev
-      # — we want config changes to take effect immediately.
+      # Migrate runs per deploy; seed and Vite build run ONCE
+      # per service lifetime (stable tokens). The dev service
+      # owns the shared DB seed for the recipe. Vite build
+      # produces public/build/manifest.json so @vite() works
+      # before any SSH session starts `npm run dev` (which
+      # writes public/hot and overrides the manifest).
       initCommands:
         - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
         - zsc execOnce seed-v1 --retryUntilSuccessful -- php artisan db:seed --force
+        - zsc execOnce vite-build-v1 --retryUntilSuccessful -- npm run build
         - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
       envVariables:
         APP_NAME: "Laravel Zerops"
@@ -357,5 +360,4 @@ composer require laravel/scout meilisearch/meilisearch-php
 - **PDO PostgreSQL extension** — The `php-nginx` base image includes `pdo_pgsql` out of the box. No `prepareCommands` or `apk add` needed for PostgreSQL connectivity.
 - **Predis over phpredis** — The `php-nginx` base image does not include the `phpredis` C extension. Use the `predis/predis` Composer package and set `REDIS_CLIENT=predis` to avoid "class Redis not found" errors.
 - **Object storage requires path-style** — Zerops object storage uses MinIO, which requires `AWS_USE_PATH_STYLE_ENDPOINT=true`. Without it, the SDK attempts virtual-hosted bucket URLs that MinIO cannot resolve.
-- **Vite manifest missing on dev after fresh deploy** — the `dev` setup intentionally omits `npm run build` from `buildCommands` so the HMR workflow (`npm run dev` via SSH) stays fast. Any view rendering `@vite(...)` therefore 500s with `Vite manifest not found at: /var/www/public/build/manifest.json` on the first request after a `zerops_deploy`. Fix: run `ssh appdev 'cd /var/www && npm run build'` once after the deploy and before `zerops_verify` — SSHFS propagates the manifest into the container without a redeploy. For iterative work, `ssh appdev 'cd /var/www && nohup npm run dev > /tmp/vite.log 2>&1 &'` drops `public/build/hot` and Laravel routes asset URLs to the dev server. **Do NOT add `npm run build` to dev `buildCommands`** — it adds ~20–30 s to every `zcli push` and defeats the HMR-first design.
 <!-- #ZEROPS_EXTRACT_END:knowledge-base# -->
