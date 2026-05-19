@@ -67,9 +67,9 @@ zerops:
       # after seeding — the safety net for when auto-indexing
       # fires zero events (records already exist from prior deploy).
       initCommands:
-        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
-        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan db:seed --force
-        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
+        - zsc execOnce ${appVersionId} -- php artisan migrate --force
+        - zsc execOnce seed-v1 -- php artisan db:seed --force
+        - zsc execOnce ${appVersionId}-scout -- php artisan scout:import "App\\Models\\Article"
         - php artisan config:cache
         - php artisan route:cache
         - php artisan view:cache
@@ -176,8 +176,8 @@ zerops:
       # — we want config changes to take effect immediately.
       initCommands:
         - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
-        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan db:seed --force
-        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
+        - zsc execOnce seed-v1 --retryUntilSuccessful -- php artisan db:seed --force
+        - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
       envVariables:
         APP_NAME: "Laravel Zerops"
         # Dev mode — detailed error pages with stack traces,
