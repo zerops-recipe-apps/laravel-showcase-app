@@ -61,15 +61,14 @@ zerops:
       #
       # Migrations run exactly once per deploy via zsc execOnce,
       # regardless of how many containers start in parallel.
-      # Seeder populates sample data on first deploy so the
-      # dashboard shows real records immediately.
+      # Seeding lives in the dev setup — appdev and appstage share
+      # this database, so prod does not seed.
       # Scout import rebuilds the Meilisearch index from DB data
-      # after seeding — the safety net for when auto-indexing
-      # fires zero events (records already exist from prior deploy).
+      # on every deploy — the safety net for when auto-indexing
+      # fires zero events.
       initCommands:
-        - zsc execOnce ${appVersionId} -- php artisan migrate --force
-        - zsc execOnce seed-v1 -- php artisan db:seed --force
-        - zsc execOnce ${appVersionId}-scout -- php artisan scout:import "App\\Models\\Article"
+        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
+        - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
         - php artisan config:cache
         - php artisan route:cache
         - php artisan view:cache
@@ -171,12 +170,16 @@ zerops:
       # re-executed on every container restart.
       prepareCommands:
         - sudo -E zsc install nodejs@22
-      # Migration + seed runs once per deploy — DB is ready
-      # when the SSH session starts. No cache warming in dev
-      # — we want config changes to take effect immediately.
+      # Migrate runs per deploy; seed and Vite build run ONCE
+      # per service lifetime (stable tokens). The dev service
+      # owns the shared DB seed for the recipe. Vite build
+      # produces public/build/manifest.json so @vite() works
+      # before any SSH session starts `npm run dev` (which
+      # writes public/hot and overrides the manifest).
       initCommands:
         - zsc execOnce ${appVersionId} --retryUntilSuccessful -- php artisan migrate --force
         - zsc execOnce seed-v1 --retryUntilSuccessful -- php artisan db:seed --force
+        - zsc execOnce vite-build-v1 --retryUntilSuccessful -- npm run build
         - zsc execOnce ${appVersionId}-scout --retryUntilSuccessful -- php artisan scout:import "App\\Models\\Article"
       envVariables:
         APP_NAME: "Laravel Zerops"
