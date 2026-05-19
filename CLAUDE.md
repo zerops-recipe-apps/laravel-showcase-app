@@ -13,21 +13,20 @@ Laravel 13 recipe on Zerops with PostgreSQL, Valkey (Redis), S3-compatible objec
 
 Runtime (`php-nginx`) auto-serves PHP changes immediately — edit `.blade.php` / `.php` and they take effect on the next request.
 
-**The `dev` setup intentionally skips `npm run build` in `buildCommands`** to keep the HMR workflow (`npm run dev`) fast. Consequence: `public/build/manifest.json` does NOT exist after a fresh deploy, so any view using `@vite(...)` throws HTTP 500 `Vite manifest not found` on the first request.
+**Vite assets are built in dev `initCommands`** via `zsc execOnce vite-build-v1 -- npm run build` — produces `public/build/manifest.json` that `@vite()` reads.
 
-**After every `zerops_deploy` on this service and BEFORE running `zerops_verify`**, do ONE of:
+**For live editing, start HMR over SSH:** `ssh appdev 'cd /var/www && nohup npm run dev > /tmp/vite.log 2>&1 &'`. Writes `public/hot`; `@vite()` then routes through the dev server and ignores the manifest. Rerun after every `zerops_deploy` (container restart wipes the hot file).
 
-- **One-shot build** — `ssh appdev 'cd /var/www && npm run build'`. Creates the manifest; survives until the next deploy rsyncs the build tree back in.
-- **Long-running dev server (HMR)** — `ssh appdev 'cd /var/www && nohup npm run dev > /tmp/vite.log 2>&1 &'`. Drops `public/build/hot`; Laravel's `@vite` helper routes asset URLs to the dev server. Containers restart on every `zerops_deploy`, so rerun after each redeploy.
+**To rebuild the manifest after a JS/CSS change with no HMR running:** `ssh appdev 'cd /var/www && npm run build'`.
 
-**Do NOT add `npm run build` to dev `buildCommands`** — it adds ~20–30 s to every push and defeats the HMR-first design.
+**Do NOT add `npm run build` to dev `buildCommands`.**
 
 **All platform operations (deploy, env / scaling / storage / domains) go through the Zerops development workflow via `zcp` MCP tools. Don't shell out to `zcli`.**
 
 ## Notes
 
 - Dev runtime installs Node 22 via `prepareCommands` (`sudo -E zsc install nodejs@22`) — cached into the runtime image, not re-run on restart.
-- `initCommands` in prod AND dev run `migrate --force`, `db:seed --force`, and `scout:import` under `zsc execOnce ${appVersionId} --retryUntilSuccessful` — runs once per deploy across all containers. Prod additionally runs `config:cache`, `route:cache`, `view:cache`; dev skips these so config changes take effect immediately.
+- `initCommands` use `zsc execOnce`: `${appVersionId}` / `${appVersionId}-scout` tokens for per-deploy steps (`migrate`, `scout:import`); stable tokens (`seed-v1`, `vite-build-v1`) for once-per-service-lifetime steps (`db:seed`, `npm run build`). Dev owns the shared-DB seed; prod does not seed. Prod additionally caches `config`, `route`, `view`; dev does not.
 - Use `predis/predis` (`REDIS_CLIENT: predis`) — `php-nginx@8.4` does not include the `phpredis` C extension.
 - S3 requires `AWS_USE_PATH_STYLE_ENDPOINT: "true"` — MinIO does not support virtual-hosted bucket URLs.
 - `APP_KEY` is NOT set in `zerops.yaml envVariables` — set it at the Zerops project level so `prod`, `dev`, and `worker` all share the same key.
