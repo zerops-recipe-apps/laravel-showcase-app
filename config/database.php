@@ -153,11 +153,12 @@ return [
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 
+        // Valkey can be password-protected; authenticate as "default" when set.
         'default' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
+            'username' => env('REDIS_PASSWORD') ? 'default' : null,
+            'password' => env('REDIS_PASSWORD') ?: null,
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_DB', '0'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
@@ -169,8 +170,8 @@ return [
         'cache' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
+            'username' => env('REDIS_PASSWORD') ? 'default' : null,
+            'password' => env('REDIS_PASSWORD') ?: null,
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_CACHE_DB', '1'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
