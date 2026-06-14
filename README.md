@@ -135,6 +135,8 @@ zerops:
         REDIS_CLIENT: predis
         REDIS_HOST: ${redis_hostname}
         REDIS_PORT: ${redis_port}
+        # Valkey on Zerops requires auth — wire the injected password.
+        REDIS_PASSWORD: ${redis_password}
         SESSION_DRIVER: redis
         CACHE_STORE: redis
         QUEUE_CONNECTION: redis
@@ -227,6 +229,8 @@ zerops:
         REDIS_CLIENT: predis
         REDIS_HOST: ${redis_hostname}
         REDIS_PORT: ${redis_port}
+        # Valkey on Zerops requires auth — wire the injected password.
+        REDIS_PASSWORD: ${redis_password}
         SESSION_DRIVER: redis
         CACHE_STORE: redis
         QUEUE_CONNECTION: redis
@@ -297,6 +301,8 @@ zerops:
         REDIS_CLIENT: predis
         REDIS_HOST: ${redis_hostname}
         REDIS_PORT: ${redis_port}
+        # Valkey on Zerops requires auth — wire the injected password.
+        REDIS_PASSWORD: ${redis_password}
         # Worker shares the same Redis-backed drivers as the app.
         # Sessions are configured but unused by the CLI process.
         SESSION_DRIVER: redis
