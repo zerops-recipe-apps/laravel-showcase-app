@@ -1,10 +1,15 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "zerops/laravel-showcase-app",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Laravel 13 showcase recipe on Zerops — PostgreSQL, Valkey, S3, Meilisearch, and queue worker.",
+    "keywords": ["laravel", "zerops", "postgresql", "redis", "s3", "meilisearch"],
     "license": "MIT",
+    "homepage": "https://github.com/zerops-recipe-apps/laravel-showcase-app",
+    "support": {
+        "issues": "https://github.com/zerops-recipe-apps/laravel-showcase-app/issues",
+        "source": "https://github.com/zerops-recipe-apps/laravel-showcase-app"
+    },
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.0",
