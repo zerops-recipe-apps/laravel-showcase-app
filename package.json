@@ -37,5 +37,8 @@
         "zerops",
         "postgresql",
         "meilisearch"
-    ]
+    ],
+    "overrides": {
+        "shell-quote": "1.10.0"
+    }
 }
